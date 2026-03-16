@@ -11,7 +11,7 @@ RMAX = 32.0
 
 
 fig = plt.figure()
-fig.canvas.set_window_title('YDLidar LIDAR Monitor')
+fig.canvas.manager.set_window_title('YDLidar LIDAR Monitor')
 lidar_polar = plt.subplot(polar=True)
 lidar_polar.autoscale_view(True,True,True)
 lidar_polar.set_rmax(RMAX)
