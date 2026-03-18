@@ -96,12 +96,24 @@ function(install_package)
   # In case we want to install. 
   if( NOT EXPORT_${PROJECT_NAME} )
         # add "installed" library to list of required libraries to link against
+        # if( PACKAGE_LIB_NAME )
+        #     if(POLICY CMP0026)
+        #       cmake_policy( SET CMP0026 OLD )
+        #     endif()
+        #     get_target_property( _target_library ${PACKAGE_LIB_NAME} LOCATION )
+        #     get_filename_component( _lib ${_target_library} NAME )
+        #     list( INSERT PACKAGE_LINK_LIBS 0 ${PACKAGE_LIB_NAME} )
+        # endif()
         if( PACKAGE_LIB_NAME )
-            if(POLICY CMP0026)
-              cmake_policy( SET CMP0026 OLD )
-            endif()
-            get_target_property( _target_library ${PACKAGE_LIB_NAME} LOCATION )
-            get_filename_component( _lib ${_target_library} NAME )
+            # 1. We no longer need to set CMP0026 (it's deprecated/removed)
+            
+            # 2. Instead of getting the file path (LOCATION), we use the target name.
+            # If you specifically need the filename (e.g., ydlidar_sdk.lib), 
+            # we use a Generator Expression which is evaluated at build time.
+            set(_target_library "$<TARGET_FILE:${PACKAGE_LIB_NAME}>")
+            set(_lib "$<TARGET_FILE_NAME:${PACKAGE_LIB_NAME}>")
+
+            # 3. Always prefer linking to the target name rather than the file path.
             list( INSERT PACKAGE_LINK_LIBS 0 ${PACKAGE_LIB_NAME} )
         endif()
 
@@ -147,10 +159,24 @@ function(install_package)
         endif()
 
         # install library itself
+        # if( PACKAGE_LIB_NAME )
+        #     install( FILES ${_target_library} DESTINATION ${CMAKE_INSTALL_PREFIX}/lib )
+        #     set( PACKAGE_LIB_LINK "-l${PACKAGE_LIB_NAME}" )
+        # endif()
+        # --- REPLACED: install library itself ---
         if( PACKAGE_LIB_NAME )
-            install( FILES ${_target_library} DESTINATION ${CMAKE_INSTALL_PREFIX}/lib )
+            # This 'registers' the library into the export set named ${PROJECT_NAME}Targets
+            install(TARGETS ${PACKAGE_LIB_NAME}
+                EXPORT ${PROJECT_NAME}Targets 
+                RUNTIME DESTINATION bin
+                LIBRARY DESTINATION lib
+                ARCHIVE DESTINATION lib
+                INCLUDES DESTINATION include
+            )
             set( PACKAGE_LIB_LINK "-l${PACKAGE_LIB_NAME}" )
         endif()
+
+
     
         # build pkg-config file
         if( PACKAGE_PKG_NAME )
@@ -164,8 +190,11 @@ function(install_package)
         # Export library for easy inclusion from other cmake projects. APPEND allows
         # call to function even as subdirectory of larger project.
         FILE(REMOVE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Targets.cmake")
-        export( TARGETS ${LIBRARY_NAME}
-        APPEND FILE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Targets.cmake" )
+        export(TARGETS ${PACKAGE_LIB_NAME}
+            NAMESPACE ${PROJECT_NAME}::
+            FILE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Targets.cmake")
+        # export( TARGETS ${LIBRARY_NAME}
+        # APPEND FILE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Targets.cmake" )
 
         if("${SDK_SOURCE_DIR}" STREQUAL "")
             # Version information.  So find_package( XXX version ) will work.
@@ -188,16 +217,33 @@ function(install_package)
         endif()
 
 
+        # install(FILES
+        #     ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
+        #     ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Targets.cmake
+        #     ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
+        #     DESTINATION
+        #     lib/cmake/${PROJECT_NAME})
+
+        # install(FILES ${CMAKE_CURRENT_BINARY_DIR}/Find${PACKAGE_PKG_NAME}.cmake
+        #     DESTINATION ${CMAKE_INSTALL_PREFIX}/share/${PACKAGE_PKG_NAME}/ )
+
         install(FILES
             ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
-            ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Targets.cmake
             ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
-            DESTINATION
-            lib/cmake/${PROJECT_NAME})
+            DESTINATION lib/cmake/${PROJECT_NAME}
+)
 
+        # 2. Correctly install the Targets file using the EXPORT mechanism
+        # This replaces the line: ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Targets.cmake
+        install(EXPORT ${PROJECT_NAME}Targets
+            FILE ${PROJECT_NAME}Targets.cmake
+            NAMESPACE ${PROJECT_NAME}::
+            DESTINATION lib/cmake/${PROJECT_NAME}
+        )
+
+        # 3. Your second block remains the same (it is usually fine)
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/Find${PACKAGE_PKG_NAME}.cmake
-            DESTINATION ${CMAKE_INSTALL_PREFIX}/share/${PACKAGE_PKG_NAME}/ )
-
+            DESTINATION ${CMAKE_INSTALL_PREFIX}/share/${PACKAGE_PKG_NAME}.cmake)
 
   #  # Install tree config.  NB we DO NOT use this.  We install using brew or
   #  pkg-config.
@@ -248,10 +294,13 @@ function(install_package)
   # Export library for easy inclusion from other cmake projects. APPEND allows
   # call to function even as subdirectory of larger project.
   FILE(REMOVE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Targets.cmake")
-  export( TARGETS ${LIBRARY_NAME}
-      APPEND FILE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Targets.cmake" )
+  export(TARGETS ${PACKAGE_LIB_NAME}
+       NAMESPACE ${PROJECT_NAME}::
+       FILE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Targets.cmake")
 
-  export( PACKAGE ${PROJECT_NAME} )
+    #   export( TARGETS ${LIBRARY_NAME}
+    #   export( PACKAGE ${PROJECT_NAME} 
+    #   APPEND FILE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Targets.cmake" ))
 #  install( EXPORT ${PROJECT_NAME}Targets DESTINATION ${CMAKECONFIG_INSTALL_DIR} )
 #  install(TARGETS ${LIBRARY_NAME}
 #      EXPORT ${PROJECT_NAME}Targets DESTINATION ${CMAKE_INSTALL_PREFIX}/lib

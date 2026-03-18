@@ -51,5 +51,11 @@ execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c "if True:
                 OUTPUT_VARIABLE PYTHON_SITE
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
 # Install the wrapper.
-install(TARGETS _${MODULE_NAME} DESTINATION ${PYTHON_SITE})
+# install(TARGETS _${MODULE_NAME} DESTINATION ${PYTHON_SITE})
+# Use the TARGETS command only if the target actually exists
+if(TARGET _${MODULE_NAME})
+    install(TARGETS _${MODULE_NAME} DESTINATION ${PYTHON_SITE})
+elseif(TARGET ${MODULE_NAME})
+    install(TARGETS ${MODULE_NAME} DESTINATION ${PYTHON_SITE})
+endif()
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${MODULE_NAME}.py" DESTINATION ${PYTHON_SITE})

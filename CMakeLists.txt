@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.16)
 project(ydlidar_sdk C CXX)
 
 #########################################################
@@ -50,19 +50,41 @@ include(common/ydlidar_base)
 include(install_package)
 
 #############################################################################
-# Policy CMP0023 allows to mix old and new interfaces of target_link_libraries
+# # Policy CMP0023 allows to mix old and new interfaces of target_link_libraries
+# if(COMMAND cmake_policy)
+# 	cmake_policy(SET CMP0003 NEW) # We don't want to mix relative and absolute paths in linker lib lists.
+# 	cmake_policy(SET CMP0005 NEW) # Escape definitions (-D) strings
+# 	if(POLICY CMP0053)
+# 		cmake_policy(SET CMP0053 OLD) # Simplify variable reference and escape sequence evaluation.
+# 	endif()
+# 	if(POLICY CMP0037)
+# 		cmake_policy(SET CMP0037 OLD)  # Allow defining target "test"
+# 	endif()
+# 	if(POLICY CMP0043)
+# 		cmake_policy(SET CMP0043 OLD) #  Ignore COMPILE_DEFINITIONS_<Config> properties.
+# 	endif()
+# endif()
 if(COMMAND cmake_policy)
-	cmake_policy(SET CMP0003 NEW) # We don't want to mix relative and absolute paths in linker lib lists.
-	cmake_policy(SET CMP0005 NEW) # Escape definitions (-D) strings
-	if(POLICY CMP0053)
-		cmake_policy(SET CMP0053 OLD) # Simplify variable reference and escape sequence evaluation.
-	endif()
-	if(POLICY CMP0037)
-		cmake_policy(SET CMP0037 OLD)  # Allow defining target "test"
-	endif()
-	if(POLICY CMP0043)
-		cmake_policy(SET CMP0043 OLD) #  Ignore COMPILE_DEFINITIONS_<Config> properties.
-	endif()
+    # Required for modern path and definition handling
+    cmake_policy(SET CMP0003 NEW) 
+    cmake_policy(SET CMP0005 NEW) 
+
+    # CMP0053: Update to NEW to use the faster, modern variable expansion
+    if(POLICY CMP0053)
+        cmake_policy(SET CMP0053 NEW) 
+    endif()
+
+    # CMP0037: Update to NEW. 
+    # Note: If your project has a target named "test", rename it to "sdk_test" 
+    # to avoid conflicts with CMake's built-in 'test' target.
+    if(POLICY CMP0037)
+        cmake_policy(SET CMP0037 NEW)  
+    endif()
+
+    # CMP0043: Update to NEW to use modern per-configuration properties
+    if(POLICY CMP0043)
+        cmake_policy(SET CMP0043 NEW) 
+    endif()
 endif()
 
 #############################################################################
@@ -121,7 +143,12 @@ ydlidar_add_library(${PROJECT_NAME} STATIC ${SDK_SOURCES} ${SDK_HEADERS} ${GENER
 endif()
 
 target_link_libraries(${PROJECT_NAME} ${SDK_LIBS})
-target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+# target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_include_directories(${PROJECT_NAME} PUBLIC 
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+    $<INSTALL_INTERFACE:include>
+)
 
 #############################################################################################
 #static library
